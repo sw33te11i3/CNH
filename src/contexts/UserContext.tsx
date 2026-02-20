@@ -216,8 +216,22 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const createUser = async (identifier: string, pass: string, initialData: Partial<CNHData>) => {
         const email = normalizeIdentifier(identifier);
-        const { data: authData, error: authError } = await supabase.auth.signUp({ email, password: pass });
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password: pass,
+            options: {
+                data: {
+                    role: 'user' // Metadata opcional
+                }
+            }
+        });
+
         if (authError) throw authError;
+
+        // Se o usuário foi criado mas não há sessão, pode ser que 'Email Confirmation' esteja ligado no Supabase
+        if (!authData.session && authData.user) {
+            alert('Usuário criado, mas aguardando confirmação de e-mail (ou habilitado manual no painel). Verifique as configurações de E-mail Auth no Supabase.');
+        }
 
         if (authData.user) {
             const dbData = {
@@ -228,8 +242,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             };
 
             const { error: profileError } = await supabase.from('profiles').insert(dbData);
-            if (profileError) throw profileError;
+            if (profileError) {
+                // Se der erro aqui, o usuário no Auth já existe, mas o perfil não.
+                console.error('Erro ao criar perfil:', profileError);
+                throw new Error('Usuário autenticado criado, mas erro ao salvar perfil: ' + profileError.message);
+            }
             await refreshUsersList();
+        } else {
+            throw new Error('Não foi possível criar o usuário. Verifique se ele já existe.');
         }
     };
 

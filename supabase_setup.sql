@@ -49,12 +49,25 @@ create policy "Images are publicly accessible." on storage.objects
 create policy "Authenticated users can upload images." on storage.objects
   for insert with check (bucket_id = 'cnh-images' and auth.role() = 'authenticated');
 
--- Admin Policies (Optional: requires logic to assign 'admin' role in profiles)
-create policy "Admins can view all profiles." on profiles
-  for select using (auth.uid() in (select id from profiles where role = 'admin'));
+-- Admin Policies (Full access for roles with 'admin')
+-- Note: Simplified using a direct check to avoid recursion issues
+create policy "Admins have full access to all profiles." on profiles
+  for all using (
+    exists (
+      select 1 from profiles
+      where profiles.id = auth.uid() and profiles.role = 'admin'
+    )
+  );
 
-create policy "Admins can update all profiles." on profiles
-  for update using (auth.uid() in (select id from profiles where role = 'admin'));
+-- Storage Admin Policies
+create policy "Admins have full access to images." on storage.objects
+  for all using (
+    bucket_id = 'cnh-images' and 
+    exists (
+      select 1 from public.profiles
+      where profiles.id = auth.uid() and profiles.role = 'admin'
+    )
+  );
 
-create policy "Admins can delete profiles." on profiles
-  for delete using (auth.uid() in (select id from profiles where role = 'admin'));
+-- HELPER: Script to promote a user to admin (Run this in SQL Editor if needed)
+-- UPDATE profiles SET role = 'admin' WHERE email = 'admin@chl.com';
