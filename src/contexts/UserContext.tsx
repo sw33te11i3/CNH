@@ -59,7 +59,7 @@ const DEFAULT_USER_CNH: CNHData = {
     firstLicenseDate: "27/06/2007",
     issueDate: "02/09/2022",
     issuePlace: "SC",
-    issuingBody: "SSP SC", // Alterado SSP SP para SSP SC conforme UF
+    issuingBody: "SSP SC",
     observation: "-",
     scores: 40,
     profileImage: "",
@@ -117,7 +117,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                     .select('*')
                     .eq('id', session.user.id)
                     .single();
-                
+
                 if (profile) {
                     setCurrentUser(mapProfileToUser(profile));
                 }
@@ -141,7 +141,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                     .select('*')
                     .eq('id', session.user.id)
                     .single();
-                
+
                 if (profile) setCurrentUser(mapProfileToUser(profile));
                 if (profile?.role === 'admin') await refreshUsersList();
             } else if (event === 'SIGNED_OUT') {
@@ -188,8 +188,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             const { error: profileError } = await supabase.from('profiles').insert({
                 id: authData.user.id,
                 email,
-                name: initialData.name || '',
-                cpf: initialData.cpf || '',
+                ...DEFAULT_USER_CNH,
                 ...initialData
             });
             if (profileError) throw profileError;
@@ -201,7 +200,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         const updates: any = {};
         if (data.email) updates.email = data.email;
         if (data.role) updates.role = data.role;
-        
+
         if (data.cnhData) {
             const cnh = data.cnhData;
             if (cnh.name !== undefined) updates.name = cnh.name;

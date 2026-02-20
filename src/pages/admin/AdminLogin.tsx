@@ -10,12 +10,13 @@ export function AdminLogin() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (login(email, password)) {
+        const success = await login(email, password);
+        if (success) {
             navigate('/admin/panel');
         } else {
-            setError('Credenciais inválidas. Tente admin@chl.com / 123321');
+            setError('Credenciais inválidas');
         }
     };
 

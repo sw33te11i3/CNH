@@ -1,26 +1,38 @@
 import { motion } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
 
 export function Splash() {
     const navigate = useNavigate();
+    const { currentUser, loading } = useUser();
+    const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            navigate('/login');
-        }, 2500);
+            setMinTimeElapsed(true);
+        }, 2000);
         return () => clearTimeout(timer);
-    }, [navigate]);
+    }, []);
+
+    useEffect(() => {
+        if (minTimeElapsed && !loading) {
+            if (currentUser) {
+                navigate('/app/dashboard');
+            } else {
+                navigate('/login');
+            }
+        }
+    }, [minTimeElapsed, loading, currentUser, navigate]);
 
     return (
-        <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8">
+        <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 overflow-hidden">
             <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.8 }}
                 className="flex items-center justify-center"
             >
-                {/* Simple CSS Logo Construction until asset is provided/generated */}
                 <div className="flex items-center">
                     <h1 className="text-7xl font-black tracking-tighter text-blue-600">CNH</h1>
                     <div className="relative h-20 w-16 -ml-2 z-[-1]">
@@ -37,6 +49,13 @@ export function Splash() {
             >
                 DO BRASIL
             </motion.div>
+
+            {/* Indicação sutil de carregamento se o Supabase demorar */}
+            {!minTimeElapsed || loading ? (
+                <div className="absolute bottom-12 flex flex-col items-center gap-2">
+                    <div className="w-6 h-6 border-2 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+                </div>
+            ) : null}
         </div>
     );
 }
