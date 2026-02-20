@@ -10,7 +10,7 @@ export function AdminLogin() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         const success = await login(email, password);
         if (success) {
