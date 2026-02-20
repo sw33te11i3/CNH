@@ -22,14 +22,15 @@ import { MainCard } from '../components/MainCard';
 export function Dashboard() {
     const navigate = useNavigate();
     return (
-        <div className="flex flex-col h-full bg-gray-100 pb-20">
+        <div className="flex flex-col h-full bg-gray-100 pb-24">
             {/* Dashboard Header - REPLACED with component, rounded-b added via component or wrapper */}
-            <AppHeader className="rounded-b-[40px] shadow-lg mb-6" />
+            {/* Dashboard Header - Reduced margin to pull content up */}
+            <AppHeader className="rounded-b-[40px] shadow-lg mb-4" />
 
-            <div className="flex-1 px-4 space-y-4 overflow-y-auto">
+            <div className="flex-1 px-5 space-y-4 overflow-y-auto pb-8">
                 <MainCard
                     title="CONDUTOR"
-                    subtitle={<>Gerencie sua<br />habilitação</>}
+                    subtitle={<>Gerencie sua<br /><strong>habilitação</strong></>}
                     bgColor="bg-[#00a859]" // Green
                     imagePath="/icones/icones_condutor.png"
                     delay={0.1}
@@ -41,6 +42,7 @@ export function Dashboard() {
                     subtitle={<>Acesso ao <strong>CRLV-e</strong>,<br />venda digital</>}
                     bgColor="bg-[#fdb913]" // Yellow
                     imagePath="/icones/icones_veiculos.png"
+                    textColor="text-[#4e4e4e]"
                     delay={0.2}
                 />
 
@@ -58,23 +60,17 @@ export function Dashboard() {
                     subtitle={<>Conheça nossa<br /><strong>plataforma de cursos</strong></>}
                     bgColor="bg-[#66afe9]" // Light Blue
                     imagePath="/icones/icones_educacao.png"
+                    textColor="text-[#4e4e4e]"
                     delay={0.4}
                 />
+            </div>
 
-                {/* Gov Footer Logos */}
-                <div className="mt-8 pb-8 flex justify-between items-center opacity-80 grayscale scale-90">
-                    <div className="flex items-center gap-1">
-                        <div className="w-6 h-6 bg-blue-600 rounded-full"></div>
-                        <span className="font-bold text-gray-600 text-xs">Serpro</span>
-                    </div>
-                    <div className="text-[10px] text-center font-bold text-gray-500 leading-tight">
-                        MINISTÉRIO DOS<br />TRANSPORTES
-                    </div>
-                    <div className="font-black text-sm text-gray-600">
-                        GOVERNO FEDERAL
-                    </div>
-                </div>
-
+            {/* Gov Footer Logos - Fixed at bottom of screen viewport */}
+            <div className="fixed bottom-0 left-0 right-0 pt-4 pb-6 px-8 flex justify-between items-end bg-gray-100 z-10">
+                <img src="/logos/Serpro.png" alt="Serpro" className="h-8 object-contain" />
+                <img src="/logos/cnh-do-brasil-seeklogo.png" alt="CNH" className="h-6 object-contain" />
+                <img src="/logos/ministerio dos transportes.png" alt="Ministério dos Transportes" className="h-5 object-contain" />
+                <img src="/logos/governo-federal-do-brasil-2025-seeklogo.png" alt="Governo Federal" className="h-9 object-contain" />
             </div>
         </div>
     );

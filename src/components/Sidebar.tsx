@@ -53,18 +53,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         <div className="px-6 pt-12 pb-6 bg-[#F5F7FA]">
                             {/* Logo Area */}
                             <div className="mb-6">
-                                <div className="flex items-center gap-1">
-                                    <span className="text-blue-700 font-extrabold text-4xl tracking-tighter" style={{ fontFamily: 'Arial, sans-serif' }}>CNH</span>
-                                    <div className="relative h-8 w-8">
-                                        {/* Yellow Triangle */}
-                                        <svg viewBox="0 0 100 100" className="h-full w-full">
-                                            <path d="M0 0 L100 50 L0 100 Z" fill="#FFCC00" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div className="bg-[#009933] text-white text-[10px] font-bold px-1 py-0.5 inline-block -mt-2 ml-1 tracking-wider rounded-sm">
-                                    DO BRASIL
-                                </div>
+                                <img
+                                    src="/logos/cnh-do-brasil-seeklogo.png"
+                                    alt="CNH do Brasil"
+                                    className="h-12 object-contain"
+                                />
                             </div>
 
                             {/* User Info */}
@@ -101,7 +94,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             </div>
                         </div>
 
-                        {/* Footer - Logout & Logo */}
+                        {/* Footer - Logout */}
                         <div className="p-0">
                             <div className="h-px bg-gray-300 mx-0 w-full" />
                             <button
@@ -111,20 +104,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                                 <LogOut size={24} className="text-[#333]" strokeWidth={2} />
                                 <span className="text-[15px] font-normal text-[#333]">Sair da Conta</span>
                             </button>
-
-                            {/* Gov Logo Area */}
-                            <div className="pb-6 pr-6 flex justify-end opacity-90">
-                                <div className="flex items-end gap-1">
-                                    <span className="text-gray-600 text-[10px] font-bold self-center mr-1">GOVERNO DO</span>
-                                    {/* Simplified Brazil Logo Text */}
-                                    <span className="font-black text-xl text-[#009933]">B</span>
-                                    <span className="font-black text-xl text-[#FFCC00]">R</span>
-                                    <span className="font-black text-xl text-[#00285f]">A</span>
-                                    <span className="font-black text-xl text-[#009933]">S</span>
-                                    <span className="font-black text-xl text-[#FFCC00]">I</span>
-                                    <span className="font-black text-xl text-[#00285f]">L</span>
-                                </div>
-                            </div>
                         </div>
 
                     </motion.div>

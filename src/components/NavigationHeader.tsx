@@ -28,7 +28,7 @@ export function NavigationHeader({ title, subtitle, onBack, className = "" }: Na
 
         // In the print, "CONDUTOR" is close to top.
 
-        <div className={`bg-[#00285f] text-white pt-12 pb-8 px-6 flex items-center ${className?.includes('rounded') ? '' : 'rounded-b-[35px]'} shadow-lg relative z-20 -mt-1 ${className}`}>
+        <div className={`bg-[#00285f] text-white pt-5 pb-6 px-6 flex items-center ${className?.includes('rounded') ? '' : 'rounded-b-[20px]'} shadow-lg relative z-20 ${className}`}>
             <button
                 onClick={handleBack}
                 className="mr-5 w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors active:scale-95 backdrop-blur-sm"

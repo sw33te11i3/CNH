@@ -9,7 +9,7 @@ export function AppHeader({ className = "" }: AppHeaderProps) {
     const { openSidebar } = useOutletContext<{ openSidebar: () => void }>();
 
     return (
-        <div className={`bg-[#00285f] text-white pt-12 pb-6 px-6 flex justify-between items-center relative z-30 ${className}`}>
+        <div className={`bg-[#00285f] text-white pt-5 pb-6 px-6 flex justify-between items-center relative z-30 ${className}`}>
             <div className="flex items-center gap-4">
                 <button
                     onClick={openSidebar}
