@@ -145,8 +145,15 @@ export function AdminPanel() {
                     {/* Login Info */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="col-span-2 sm:col-span-1">
-                            <label className="block text-sm font-bold text-gray-700 mb-1">E-mail (Login)</label>
-                            <input required type="email" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full border p-2 rounded" />
+                            <label className="block text-sm font-bold text-gray-700 mb-1">CPF (Login / Identificador)</label>
+                            <input
+                                required
+                                type="text"
+                                placeholder="000.000.000-00 ou admin@chl.com"
+                                value={formData.email || ''}
+                                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                className="w-full border p-2 rounded"
+                            />
                         </div>
                         {view === 'create' && (
                             <div className="col-span-2 sm:col-span-1">

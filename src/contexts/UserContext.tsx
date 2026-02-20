@@ -153,7 +153,41 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         return () => listener.subscription.unsubscribe();
     }, []);
 
-    const login = async (email: string, pass: string): Promise<boolean> => {
+    const mapCNHToDB = (data: Partial<CNHData>) => {
+        const updates: any = {};
+        if (data.name !== undefined) updates.name = data.name;
+        if (data.cpf !== undefined) updates.cpf = data.cpf;
+        if (data.sex !== undefined) updates.sex = data.sex;
+        if (data.birthDate !== undefined) updates.birth_date = data.birthDate;
+        if (data.fatherName !== undefined) updates.father_name = data.fatherName;
+        if (data.motherName !== undefined) updates.mother_name = data.motherName;
+        if (data.category !== undefined) updates.category = data.category;
+        if (data.registerNumber !== undefined) updates.register_number = data.registerNumber;
+        if (data.validityDate !== undefined) updates.validity_date = data.validityDate;
+        if (data.firstLicenseDate !== undefined) updates.first_license_date = data.firstLicenseDate;
+        if (data.issueDate !== undefined) updates.issue_date = data.issueDate;
+        if (data.issuePlace !== undefined) updates.issue_place = data.issuePlace;
+        if (data.issuingBody !== undefined) updates.issuing_body = data.issuingBody;
+        if (data.observation !== undefined) updates.observation = data.observation;
+        if (data.scores !== undefined) updates.scores = data.scores;
+        if (data.profileImage !== undefined) updates.profile_image_url = data.profileImage;
+        if (data.cnhFrontImage !== undefined) updates.cnh_front_image_url = data.cnhFrontImage;
+        if (data.cnhBackImage !== undefined) updates.cnh_back_image_url = data.cnhBackImage;
+        if (data.qrCodeImage !== undefined) updates.qr_code_image_url = data.qrCodeImage;
+        return updates;
+    };
+
+    const normalizeIdentifier = (id: string) => {
+        const clean = id.trim();
+        if (clean.includes('@')) return clean.toLowerCase();
+        // Se parece CPF (apenas números ou com máscara), vira e-mail fake
+        const onlyNumbers = clean.replace(/\D/g, '');
+        if (onlyNumbers.length === 11) return `${onlyNumbers}@app.cnh`;
+        return clean.toLowerCase();
+    };
+
+    const login = async (identifier: string, pass: string): Promise<boolean> => {
+        const email = normalizeIdentifier(identifier);
         const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
         return !error && !!data.user;
     };
@@ -180,17 +214,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         return data.publicUrl;
     };
 
-    const createUser = async (email: string, pass: string, initialData: Partial<CNHData>) => {
+    const createUser = async (identifier: string, pass: string, initialData: Partial<CNHData>) => {
+        const email = normalizeIdentifier(identifier);
         const { data: authData, error: authError } = await supabase.auth.signUp({ email, password: pass });
         if (authError) throw authError;
 
         if (authData.user) {
-            const { error: profileError } = await supabase.from('profiles').insert({
+            const dbData = {
                 id: authData.user.id,
                 email,
-                ...DEFAULT_USER_CNH,
-                ...initialData
-            });
+                ...mapCNHToDB(DEFAULT_USER_CNH),
+                ...mapCNHToDB(initialData)
+            };
+
+            const { error: profileError } = await supabase.from('profiles').insert(dbData);
             if (profileError) throw profileError;
             await refreshUsersList();
         }
@@ -198,23 +235,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const updateUser = async (id: string, data: Partial<User & { cnhData?: Partial<CNHData> }>) => {
         const updates: any = {};
-        if (data.email) updates.email = data.email;
+        if (data.email) updates.email = normalizeIdentifier(data.email);
         if (data.role) updates.role = data.role;
 
         if (data.cnhData) {
-            const cnh = data.cnhData;
-            if (cnh.name !== undefined) updates.name = cnh.name;
-            if (cnh.cpf !== undefined) updates.cpf = cnh.cpf;
-            if (cnh.sex !== undefined) updates.sex = cnh.sex;
-            if (cnh.birthDate !== undefined) updates.birth_date = cnh.birthDate;
-            if (cnh.category !== undefined) updates.category = cnh.category;
-            if (cnh.validityDate !== undefined) updates.validity_date = cnh.validityDate;
-            if (cnh.issueDate !== undefined) updates.issue_date = cnh.issueDate;
-            if (cnh.issuePlace !== undefined) updates.issue_place = cnh.issuePlace;
-            if (cnh.profileImage !== undefined) updates.profile_image_url = cnh.profileImage;
-            if (cnh.cnhFrontImage !== undefined) updates.cnh_front_image_url = cnh.cnhFrontImage;
-            if (cnh.cnhBackImage !== undefined) updates.cnh_back_image_url = cnh.cnhBackImage;
-            if (cnh.qrCodeImage !== undefined) updates.qr_code_image_url = cnh.qrCodeImage;
+            Object.assign(updates, mapCNHToDB(data.cnhData));
         }
 
         const { error } = await supabase.from('profiles').update(updates).eq('id', id);
