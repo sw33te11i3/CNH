@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 // Tipos 
 export interface CNHData {
     name: string;
     cpf: string;
-    sex: string; // Novo campo
+    sex: string;
     birthDate: string;
     fatherName: string;
     motherName: string;
@@ -17,7 +18,7 @@ export interface CNHData {
     issuingBody: string;
     observation: string;
     scores: number;
-    // Imagens (Base64)
+    // Imagens (URLs do Supabase Storage)
     profileImage: string;
     cnhFrontImage: string;
     cnhBackImage: string;
@@ -26,35 +27,25 @@ export interface CNHData {
 
 export interface User {
     id: string;
-    email: string; // Login
-    password: string; // Senha de acesso
+    email: string;
     role: 'admin' | 'user';
     cnhData: CNHData;
 }
 
-// Admin Padrão
-const ADMIN_USER: User = {
-    id: 'admin_001',
-    email: 'admin@chl.com',
-    password: '123', // Simplificado para teste, user pediu 123321 mas vou usar o que ele pediu
-    role: 'admin',
-    cnhData: { ...{} } as CNHData // Admin não precisa de CNH, mas deixamos objeto vazio
-};
-
 interface UserContextType {
     currentUser: User | null;
-    users: User[]; // Lista de todos os usuários (apenas Admin vê)
-    login: (email: string, pass: string) => boolean;
-    logout: () => void;
-    // Ações do Admin
-    createUser: (email: string, pass: string, initialData: Partial<CNHData>) => void;
-    updateUser: (id: string, data: Partial<User>) => void;
-    deleteUser: (id: string) => void;
+    users: User[];
+    loading: boolean;
+    login: (email: string, pass: string) => Promise<boolean>;
+    logout: () => Promise<void>;
+    createUser: (email: string, pass: string, initialData: Partial<CNHData>) => Promise<void>;
+    updateUser: (id: string, data: Partial<User & { cnhData?: Partial<CNHData> }>) => Promise<void>;
+    deleteUser: (id: string) => Promise<void>;
+    uploadImage: (file: File, path: string) => Promise<string>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// Dados Default de Exemplo (para não começar vazio)
 const DEFAULT_USER_CNH: CNHData = {
     name: "GABRIEL DE CARVALHO ALMEIDA",
     cpf: "065.494.269-28",
@@ -68,7 +59,7 @@ const DEFAULT_USER_CNH: CNHData = {
     firstLicenseDate: "27/06/2007",
     issueDate: "02/09/2022",
     issuePlace: "SC",
-    issuingBody: "SSP SP",
+    issuingBody: "SSP SC", // Alterado SSP SP para SSP SC conforme UF
     observation: "-",
     scores: 40,
     profileImage: "",
@@ -80,98 +71,172 @@ const DEFAULT_USER_CNH: CNHData = {
 export function UserProvider({ children }: { children: React.ReactNode }) {
     const [users, setUsers] = useState<User[]>([]);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    // Carregar dados e restaurar sessão
+    const mapProfileToUser = (profile: any): User => ({
+        id: profile.id,
+        email: profile.email,
+        role: profile.role || 'user',
+        cnhData: {
+            name: profile.name || '',
+            cpf: profile.cpf || '',
+            sex: profile.sex || '',
+            birthDate: profile.birth_date || '',
+            fatherName: profile.father_name || '',
+            motherName: profile.mother_name || '',
+            category: profile.category || '',
+            registerNumber: profile.register_number || '',
+            validityDate: profile.validity_date || '',
+            firstLicenseDate: profile.first_license_date || '',
+            issueDate: profile.issue_date || '',
+            issuePlace: profile.issue_place || '',
+            issuingBody: profile.issuing_body || '',
+            observation: profile.observation || '',
+            scores: profile.scores || 0,
+            profileImage: profile.profile_image_url || '',
+            cnhFrontImage: profile.cnh_front_image_url || '',
+            cnhBackImage: profile.cnh_back_image_url || '',
+            qrCodeImage: profile.qr_code_image_url || '',
+        }
+    });
+
+    const refreshUsersList = async () => {
+        const { data, error } = await supabase.from('profiles').select('*');
+        if (!error && data) {
+            setUsers(data.map(mapProfileToUser));
+        }
+    };
+
     useEffect(() => {
-        const storedUsers = localStorage.getItem('app_cnh_users');
-        const activeUserId = localStorage.getItem('app_cnh_active_user_id');
-
-        let currentUsersList: User[] = [];
-
-        if (storedUsers) {
-            currentUsersList = JSON.parse(storedUsers);
-        } else {
-            // Inicializar com Admin e um User Padrão se não houver nada
-            currentUsersList = [
-                { ...ADMIN_USER, password: '123' }, // Senha hardcoded pedida
-                {
-                    id: 'user_dev',
-                    email: 'user@teste.com',
-                    password: '123',
-                    role: 'user',
-                    cnhData: DEFAULT_USER_CNH
+        // Restaurar sessão do Auth
+        const initSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                if (profile) {
+                    setCurrentUser(mapProfileToUser(profile));
                 }
-            ];
-            localStorage.setItem('app_cnh_users', JSON.stringify(currentUsersList));
-        }
-
-        setUsers(currentUsersList);
-
-        // Restaurar sessão automaticamente
-        if (activeUserId) {
-            const foundUser = currentUsersList.find(u => u.id === activeUserId);
-            if (foundUser) {
-                setCurrentUser(foundUser);
             }
-        }
+            if (session?.user?.id) {
+                // Se for admin, carrega todos
+                const { data: roleCheck } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+                if (roleCheck?.role === 'admin') {
+                    await refreshUsersList();
+                }
+            }
+            setLoading(false);
+        };
+
+        initSession();
+
+        const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session?.user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                if (profile) setCurrentUser(mapProfileToUser(profile));
+                if (profile?.role === 'admin') await refreshUsersList();
+            } else if (event === 'SIGNED_OUT') {
+                setCurrentUser(null);
+                setUsers([]);
+            }
+        });
+
+        return () => listener.subscription.unsubscribe();
     }, []);
 
-    const login = (email: string, pass: string): boolean => {
-        // Verifica Admin Hardcoded (ou se estiver na lista)
-        if (email === 'admin@chl.com' && pass === '123321') {
-            // O user pediu senha '123321'
-            const admin = { ...ADMIN_USER, password: '123321' };
-            setCurrentUser(admin);
-            localStorage.setItem('app_cnh_active_user_id', admin.id);
-            return true;
-        }
-
-        const foundUser = users.find(u => u.email === email && u.password === pass);
-        if (foundUser) {
-            setCurrentUser(foundUser);
-            localStorage.setItem('app_cnh_active_user_id', foundUser.id);
-            return true;
-        }
-        return false;
+    const login = async (email: string, pass: string): Promise<boolean> => {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+        return !error && !!data.user;
     };
 
-    const logout = () => {
-        setCurrentUser(null);
-        localStorage.removeItem('app_cnh_active_user_id');
+    const logout = async () => {
+        await supabase.auth.signOut();
     };
 
-    const createUser = (email: string, pass: string, initialData: Partial<CNHData>) => {
-        const newUser: User = {
-            id: Date.now().toString(),
-            email,
-            password: pass,
-            role: 'user',
-            cnhData: { ...DEFAULT_USER_CNH, ...initialData }
-        };
-        const newUsers = [...users, newUser];
-        setUsers(newUsers);
-        localStorage.setItem('app_cnh_users', JSON.stringify(newUsers));
+    const uploadImage = async (file: File, path: string): Promise<string> => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${path}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('cnh-images')
+            .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage
+            .from('cnh-images')
+            .getPublicUrl(filePath);
+
+        return data.publicUrl;
     };
 
-    const updateUser = (id: string, data: Partial<User>) => {
-        const newUsers = users.map(u => u.id === id ? { ...u, ...data } : u);
-        setUsers(newUsers);
-        localStorage.setItem('app_cnh_users', JSON.stringify(newUsers));
+    const createUser = async (email: string, pass: string, initialData: Partial<CNHData>) => {
+        const { data: authData, error: authError } = await supabase.auth.signUp({ email, password: pass });
+        if (authError) throw authError;
 
-        // Se estivermos editando o user logado, atualiza o estado atual também
-        if (currentUser && currentUser.id === id) {
-            setCurrentUser({ ...currentUser, ...data });
+        if (authData.user) {
+            const { error: profileError } = await supabase.from('profiles').insert({
+                id: authData.user.id,
+                email,
+                name: initialData.name || '',
+                cpf: initialData.cpf || '',
+                ...initialData
+            });
+            if (profileError) throw profileError;
+            await refreshUsersList();
         }
     };
 
-    const deleteUser = (id: string) => {
-        const newUsers = users.filter(u => u.id !== id);
-        setUsers(newUsers);
-        localStorage.setItem('app_cnh_users', JSON.stringify(newUsers));
+    const updateUser = async (id: string, data: Partial<User & { cnhData?: Partial<CNHData> }>) => {
+        const updates: any = {};
+        if (data.email) updates.email = data.email;
+        if (data.role) updates.role = data.role;
+        
+        if (data.cnhData) {
+            const cnh = data.cnhData;
+            if (cnh.name !== undefined) updates.name = cnh.name;
+            if (cnh.cpf !== undefined) updates.cpf = cnh.cpf;
+            if (cnh.sex !== undefined) updates.sex = cnh.sex;
+            if (cnh.birthDate !== undefined) updates.birth_date = cnh.birthDate;
+            if (cnh.category !== undefined) updates.category = cnh.category;
+            if (cnh.validityDate !== undefined) updates.validity_date = cnh.validityDate;
+            if (cnh.issueDate !== undefined) updates.issue_date = cnh.issueDate;
+            if (cnh.issuePlace !== undefined) updates.issue_place = cnh.issuePlace;
+            if (cnh.profileImage !== undefined) updates.profile_image_url = cnh.profileImage;
+            if (cnh.cnhFrontImage !== undefined) updates.cnh_front_image_url = cnh.cnhFrontImage;
+            if (cnh.cnhBackImage !== undefined) updates.cnh_back_image_url = cnh.cnhBackImage;
+            if (cnh.qrCodeImage !== undefined) updates.qr_code_image_url = cnh.qrCodeImage;
+        }
+
+        const { error } = await supabase.from('profiles').update(updates).eq('id', id);
+        if (error) throw error;
+
+        if (currentUser?.id === id) {
+            const { data: profile } = await supabase.from('profiles').select('*').eq('id', id).single();
+            if (profile) setCurrentUser(mapProfileToUser(profile));
+        }
+        await refreshUsersList();
+    };
+
+    const deleteUser = async (id: string) => {
+        // Nota: Auth users devem ser deletados via admin API ou trigger, aqui deletamos apenas o profile
+        const { error } = await supabase.from('profiles').delete().eq('id', id);
+        if (error) throw error;
+        await refreshUsersList();
     };
 
     return (
-        <UserContext.Provider value={{ currentUser, users, login, logout, createUser, updateUser, deleteUser }}>
+        <UserContext.Provider value={{ currentUser, users, loading, login, logout, createUser, updateUser, deleteUser, uploadImage }}>
             {children}
         </UserContext.Provider>
     );

@@ -2,20 +2,22 @@ import React, { useState } from 'react';
 import { useUser } from '../../contexts/UserContext';
 import type { User, CNHData } from '../../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Plus, Trash2, Edit2, Upload, Users } from 'lucide-react';
+import { LogOut, Plus, Trash2, Edit2, Upload, Users, Loader2 } from 'lucide-react';
 
 export function AdminPanel() {
-    const { users, logout, createUser, updateUser, deleteUser } = useUser();
+    const { users, logout, createUser, updateUser, deleteUser, uploadImage, loading } = useUser();
     const navigate = useNavigate();
 
     const [view, setView] = useState<'list' | 'edit' | 'create'>('list');
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [uploadingField, setUploadingField] = useState<string | null>(null);
 
     // Form State
-    const [formData, setFormData] = useState<Partial<User & CNHData>>({});
+    const [formData, setFormData] = useState<Partial<User & CNHData & { password?: string }>>({});
 
-    const handleLogout = () => {
-        logout();
+    const handleLogout = async () => {
+        await logout();
         navigate('/login');
     };
 
@@ -34,38 +36,50 @@ export function AdminPanel() {
         setEditingId(user.id);
         setFormData({
             email: user.email,
-            password: user.password,
             ...user.cnhData
         });
         setView('edit');
     };
 
-    const handleSave = (e: React.FormEvent) => {
+    const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsSubmitting(true);
 
-        // Separa dados de login de dados de CNH
-        const { email, password, role, id, ...cnhData } = formData as any; // Cast rápido para simplificar
+        try {
+            // Separa dados de login de dados de CNH
+            const { email, password, role, id, ...cnhData } = formData as any;
 
-        if (view === 'create') {
-            createUser(email, password, cnhData);
-        } else if (view === 'edit' && editingId) {
-            updateUser(editingId, { email, password, cnhData: cnhData as CNHData });
+            if (view === 'create') {
+                await createUser(email, password, cnhData);
+            } else if (view === 'edit' && editingId) {
+                await updateUser(editingId, { email, cnhData });
+            }
+
+            setView('list');
+            setEditingId(null);
+        } catch (error: any) {
+            alert('Erro ao salvar: ' + error.message);
+        } finally {
+            setIsSubmitting(false);
         }
-
-        setView('list');
-        setEditingId(null);
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: keyof CNHData) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: keyof CNHData) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setFormData(prev => ({ ...prev, [field]: reader.result as string }));
-            };
-            reader.readAsDataURL(file);
+            setUploadingField(field);
+            try {
+                const url = await uploadImage(file, field);
+                setFormData(prev => ({ ...prev, [field]: url }));
+            } catch (error: any) {
+                alert('Erro no upload: ' + error.message);
+            } finally {
+                setUploadingField(null);
+            }
         }
     };
+
+    if (loading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
 
     if (view === 'list') {
         return (
@@ -101,7 +115,12 @@ export function AdminPanel() {
                                             <Edit2 size={18} />
                                         </button>
                                         {user.role !== 'admin' && (
-                                            <button onClick={() => deleteUser(user.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Excluir">
+                                            <button
+                                                onClick={() => {
+                                                    if (confirm('Tem certeza?')) deleteUser(user.id);
+                                                }}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Excluir"
+                                            >
                                                 <Trash2 size={18} />
                                             </button>
                                         )}
@@ -126,13 +145,15 @@ export function AdminPanel() {
                     {/* Login Info */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="col-span-2 sm:col-span-1">
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Usuário (Login)</label>
-                            <input required type="text" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full border p-2 rounded" />
+                            <label className="block text-sm font-bold text-gray-700 mb-1">E-mail (Login)</label>
+                            <input required type="email" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full border p-2 rounded" />
                         </div>
-                        <div className="col-span-2 sm:col-span-1">
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Senha</label>
-                            <input required type="text" value={formData.password || ''} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full border p-2 rounded" />
-                        </div>
+                        {view === 'create' && (
+                            <div className="col-span-2 sm:col-span-1">
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Senha</label>
+                                <input required type="password" value={formData.password || ''} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full border p-2 rounded" />
+                            </div>
+                        )}
                     </div>
 
                     <div className="h-px bg-gray-200 my-4" />
@@ -172,7 +193,7 @@ export function AdminPanel() {
                     <div className="h-px bg-gray-200 my-4" />
 
                     {/* Images Upload */}
-                    <h3 className="font-bold text-gray-700">Imagens da CNH</h3>
+                    <h3 className="font-bold text-gray-700">Imagens da CNH (Upload para Storage)</h3>
                     <div className="grid grid-cols-2 gap-4">
                         {['profileImage', 'cnhFrontImage', 'cnhBackImage', 'qrCodeImage'].map((field) => (
                             <div key={field} className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 transition-colors relative">
@@ -181,9 +202,15 @@ export function AdminPanel() {
                                     accept="image/*"
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                     onChange={(e) => handleImageUpload(e, field as keyof CNHData)}
+                                    disabled={uploadingField === field}
                                 />
                                 <div className="space-y-2">
-                                    {formData[field as keyof CNHData] ? (
+                                    {uploadingField === field ? (
+                                        <div className="flex flex-col items-center py-4">
+                                            <Loader2 className="animate-spin text-blue-600 mb-2" />
+                                            <p className="text-xs text-gray-500">Enviando...</p>
+                                        </div>
+                                    ) : formData[field as keyof CNHData] ? (
                                         <img src={formData[field as keyof CNHData] as string} alt="Preview" className="h-24 mx-auto object-contain rounded" />
                                     ) : (
                                         <Upload className="mx-auto text-gray-400" />
@@ -195,11 +222,21 @@ export function AdminPanel() {
                     </div>
 
                     <div className="flex gap-3 pt-6">
-                        <button type="button" onClick={() => { setView('list'); setEditingId(null); }} className="flex-1 bg-gray-200 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-300">
+                        <button
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={() => { setView('list'); setEditingId(null); }}
+                            className="flex-1 bg-gray-200 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                        >
                             Cancelar
                         </button>
-                        <button type="submit" className="flex-1 bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700">
-                            Salvar Dados
+                        <button
+                            type="submit"
+                            disabled={isSubmitting || !!uploadingField}
+                            className="flex-1 bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {isSubmitting && <Loader2 className="animate-spin" size={20} />}
+                            {isSubmitting ? 'Salvando...' : 'Salvar Dados'}
                         </button>
                     </div>
                 </form>

@@ -48,10 +48,12 @@ export function Login() {
             });
 
             // Se não lançar erro, o usuário passou na biometria do sistema
-            // Como não temos backend real, vamos logar com o admin ou user default
-            // Em um app real, o backend validaria a assinatura
-            login('admin@chl.com', '123321');
-            navigate('/app/dashboard');
+            // Como agora enviamos para o Supabase, precisamos de uma senha válida se quisermos logar.
+            // Biometria real exigiria vinculação prévia. Por enquanto, mantemos para demo mas
+            // em produção precisaria bater com o banco.
+            const success = await login('admin@chl.com', '123321');
+            if (success) navigate('/app/dashboard');
+            else setIsAuthenticating(false);
 
         } catch (err) {
             console.warn("Autenticação biométrica falhou ou cancelada", err);
@@ -59,11 +61,12 @@ export function Login() {
         }
     };
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
-        if (login(cpf, password)) {
+        const success = await login(cpf, password);
+        if (success) {
             navigate('/app/dashboard');
         } else {
             setError('Dados inválidos. Verifique CPF/Senha.');
