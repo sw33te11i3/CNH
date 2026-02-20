@@ -182,7 +182,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (clean.includes('@')) return clean.toLowerCase();
         // Se parece CPF (apenas números ou com máscara), vira e-mail fake
         const onlyNumbers = clean.replace(/\D/g, '');
-        if (onlyNumbers.length === 11) return `${onlyNumbers}@app.cnh`;
+        if (onlyNumbers.length === 11) return `${onlyNumbers}@cnhbr.com.br`;
         return clean.toLowerCase();
     };
 
