@@ -102,7 +102,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const refreshUsersList = async () => {
         const { data, error } = await supabase.from('profiles').select('*');
-        if (!error && data) {
+        if (error) {
+            console.error('Erro ao buscar lista de usuários:', error);
+            return;
+        }
+        if (data) {
             setUsers(data.map(mapProfileToUser));
         }
     };
