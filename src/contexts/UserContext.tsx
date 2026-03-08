@@ -42,6 +42,7 @@ interface UserContextType {
     updateUser: (id: string, data: Partial<User & { cnhData?: Partial<CNHData> }>) => Promise<void>;
     deleteUser: (id: string) => Promise<void>;
     uploadImage: (file: File, path: string) => Promise<string>;
+    refreshUsersList: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -312,7 +313,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <UserContext.Provider value={{ currentUser, users, loading, login, logout, createUser, updateUser, deleteUser, uploadImage }}>
+        <UserContext.Provider value={{ currentUser, users, loading, login, logout, createUser, updateUser, deleteUser, uploadImage, refreshUsersList }}>
             {children}
         </UserContext.Provider>
     );

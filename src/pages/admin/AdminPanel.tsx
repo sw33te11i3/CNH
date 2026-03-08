@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogOut, Plus, Trash2, Edit2, Upload, Users, Loader2 } from 'lucide-react';
 
 export function AdminPanel() {
-    const { users, logout, createUser, updateUser, deleteUser, uploadImage, loading } = useUser();
+    const { users, logout, createUser, updateUser, deleteUser, uploadImage, loading, refreshUsersList } = useUser();
     const navigate = useNavigate();
 
     const [view, setView] = useState<'list' | 'edit' | 'create'>('list');
@@ -97,36 +97,57 @@ export function AdminPanel() {
 
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                            <h3 className="font-bold text-gray-700 flex items-center gap-2"><Users size={20} /> Usuários Cadastrados</h3>
-                            <button onClick={startCreate} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-sm">
-                                <Plus size={18} /> Novo Usuário
-                            </button>
+                            <h3 className="font-bold text-gray-700 flex items-center gap-2">
+                                <Users size={20} /> Usuários Cadastrados ({users.length})
+                            </h3>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => refreshUsersList()}
+                                    className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg"
+                                    title="Atualizar Lista"
+                                >
+                                    <Loader2 size={18} className={loading ? "animate-spin" : ""} />
+                                </button>
+                                <button onClick={startCreate} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-sm">
+                                    <Plus size={18} /> Novo Usuário
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="divide-y divide-gray-100">
-                            {users.map(user => (
-                                <div key={user.id} className="p-4 flex justify-between items-center hover:bg-gray-50 transition-colors">
-                                    <div>
-                                        <p className="font-bold text-gray-800">{user.cnhData.name || 'Sem nome'}</p>
-                                        <p className="text-sm text-gray-500">{user.email} • {user.role}</p>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => startEdit(user)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Editar">
-                                            <Edit2 size={18} />
-                                        </button>
-                                        {user.role !== 'admin' && (
-                                            <button
-                                                onClick={() => {
-                                                    if (confirm('Tem certeza?')) deleteUser(user.id);
-                                                }}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Excluir"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
-                                        )}
-                                    </div>
+                        <div className="divide-y divide-gray-100 min-h-[200px] flex flex-col">
+                            {users.length === 0 ? (
+                                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white">
+                                    <Users size={48} className="text-gray-300 mb-4" />
+                                    <p className="text-gray-500 font-medium">Nenhum usuário encontrado no banco de dados.</p>
+                                    <p className="text-sm text-gray-400 max-w-xs mt-2">
+                                        Se você já cadastrou usuários, verifique se as chaves do Supabase estão corretas ou se houve erro de RLS no Console (F12).
+                                    </p>
                                 </div>
-                            ))}
+                            ) : (
+                                users.map(user => (
+                                    <div key={user.id} className="p-4 flex justify-between items-center hover:bg-gray-50 transition-colors">
+                                        <div>
+                                            <p className="font-bold text-gray-800">{user.cnhData.name || 'Sem nome'}</p>
+                                            <p className="text-sm text-gray-500">{user.email} • {user.role}</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => startEdit(user)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Editar">
+                                                <Edit2 size={18} />
+                                            </button>
+                                            {user.role !== 'admin' && (
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm('Tem certeza?')) deleteUser(user.id);
+                                                    }}
+                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Excluir"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>
