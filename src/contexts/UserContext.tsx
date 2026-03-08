@@ -136,14 +136,24 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
         const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session?.user) {
-                const { data: profile } = await supabase
+                const { data: profile, error: profileError } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('id', session.user.id)
                     .single();
 
-                if (profile) setCurrentUser(mapProfileToUser(profile));
-                if (profile?.role === 'admin') await refreshUsersList();
+                if (profileError) {
+                    console.error('Erro ao buscar perfil após login:', profileError);
+                    return;
+                }
+
+                if (profile) {
+                    const user = mapProfileToUser(profile);
+                    setCurrentUser(user);
+                    if (user.role === 'admin') {
+                        await refreshUsersList();
+                    }
+                }
             } else if (event === 'SIGNED_OUT') {
                 setCurrentUser(null);
                 setUsers([]);
@@ -189,7 +199,25 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const login = async (identifier: string, pass: string): Promise<boolean> => {
         const email = normalizeIdentifier(identifier);
         const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
-        return !error && !!data.user;
+
+        if (error || !data.user) return false;
+
+        // Força a atualização do currentUser e da lista se for admin
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+
+        if (profile) {
+            const user = mapProfileToUser(profile);
+            setCurrentUser(user);
+            if (user.role === 'admin') {
+                await refreshUsersList();
+            }
+        }
+
+        return true;
     };
 
     const logout = async () => {

@@ -9,14 +9,24 @@ export function AdminLogin() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        const success = await login(email, password);
-        if (success) {
-            navigate('/admin/panel');
-        } else {
-            setError('Credenciais inválidas');
+        setError('');
+        setIsLoading(true);
+        try {
+            const success = await login(email, password);
+            if (success) {
+                navigate('/admin/panel');
+            } else {
+                setError('Credenciais inválidas');
+            }
+        } catch (err: any) {
+            console.error('Erro no login admin:', err);
+            setError(err.message || 'Erro ao conectar ao servidor');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -69,9 +79,17 @@ export function AdminLogin() {
 
                     <button
                         type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-colors"
+                        disabled={isLoading}
+                        className={`w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
-                        Entrar no Painel
+                        {isLoading ? (
+                            <>
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Entrando...
+                            </>
+                        ) : (
+                            'Entrar no Painel'
+                        )}
                     </button>
                 </form>
             </div>
