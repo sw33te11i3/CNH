@@ -115,26 +115,34 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         // Restaurar sessão do Auth
         const initSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', session.user.id)
-                    .single();
+            try {
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-                if (profile) {
-                    setCurrentUser(mapProfileToUser(profile));
+                if (sessionError) throw sessionError;
+
+                if (session?.user) {
+                    const { data: profile, error: profileError } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    if (profileError) {
+                        console.warn('Sessão encontrada, mas erro ao buscar perfil:', profileError.message);
+                    } else if (profile) {
+                        setCurrentUser(mapProfileToUser(profile));
+
+                        // Busca lista se for admin
+                        if (profile.role === 'admin') {
+                            await refreshUsersList();
+                        }
+                    }
                 }
+            } catch (err: any) {
+                console.error('Erro crítico na inicialização da sessão:', err.message);
+            } finally {
+                setLoading(false);
             }
-            if (session?.user?.id) {
-                // Se for admin, carrega todos
-                const { data: roleCheck } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-                if (roleCheck?.role === 'admin') {
-                    await refreshUsersList();
-                }
-            }
-            setLoading(false);
         };
 
         initSession();

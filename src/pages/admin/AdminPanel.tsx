@@ -136,8 +136,16 @@ export function AdminPanel() {
                                             </button>
                                             {user.role !== 'admin' && (
                                                 <button
-                                                    onClick={() => {
-                                                        if (confirm('Tem certeza?')) deleteUser(user.id);
+                                                    onClick={async () => {
+                                                        if (confirm(`Tem certeza que deseja excluir o usuário ${user.cnhData.name || user.email}?`)) {
+                                                            try {
+                                                                await deleteUser(user.id);
+                                                                alert('Usuário excluído com sucesso!');
+                                                            } catch (err: any) {
+                                                                console.error('Erro ao deletar usuário:', err);
+                                                                alert('Erro ao excluir: ' + (err.message || 'Verifique sua conexão ou permissões.'));
+                                                            }
+                                                        }
                                                     }}
                                                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Excluir"
                                                 >
