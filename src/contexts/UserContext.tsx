@@ -114,6 +114,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
             if (error) {
                 console.error('Erro ao buscar lista de usuários:', error);
+                // Log detalhado do erro PostgREST
+                if (error.message) console.error('Mensagem PostgREST:', error.message);
+                if (error.details) console.error('Detalhes PostgREST:', error.details);
                 return;
             }
             if (data) {
@@ -158,7 +161,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                         .single();
 
                     if (profileError) {
-                        console.warn('Erro ao buscar perfil (initSession) - Cuidado com erro 406:', profileError);
+                        console.warn('Erro ao buscar perfil (initSession):', profileError);
+                        if (profileError.message) console.error('Mensagem:', profileError.message);
+                        if (profileError.details) console.error('Detalhes:', profileError.details);
                     } else if (profile) {
                         console.log('Perfil carregado com sucesso:', profile.name);
                         setCurrentUser(mapProfileToUser(profile));
