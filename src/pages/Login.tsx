@@ -17,6 +17,14 @@ export function Login() {
     const [isAuthenticating, setIsAuthenticating] = useState(false);
 
     useEffect(() => {
+        // Verifica se é um dispositivo móvel
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        if (!isMobile) {
+            setBiometryAvailable(false);
+            return;
+        }
+
         // Verifica se o dispositivo suporta autenticação biométrica (WebAuthn)
         if (window.PublicKeyCredential) {
             PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
