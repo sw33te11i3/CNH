@@ -57,6 +57,7 @@ export function AdminPanel() {
 
             setView('list');
             setEditingId(null);
+            alert('Dados salvos com sucesso!');
         } catch (error: any) {
             alert('Erro ao salvar: ' + error.message);
         } finally {

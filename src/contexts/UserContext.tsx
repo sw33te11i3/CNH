@@ -115,6 +115,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         // Restaurar sessão do Auth
         const initSession = async () => {
+            const timeoutId = setTimeout(() => {
+                setLoading(prev => {
+                    if (prev) {
+                        console.warn('Sessão demorando muito para carregar... liberando interface.');
+                        return false;
+                    }
+                    return false;
+                });
+            }, 6000);
+
             try {
                 const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
@@ -141,6 +151,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             } catch (err: any) {
                 console.error('Erro crítico na inicialização da sessão:', err.message);
             } finally {
+                clearTimeout(timeoutId);
                 setLoading(false);
             }
         };
