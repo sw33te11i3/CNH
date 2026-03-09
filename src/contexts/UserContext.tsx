@@ -119,6 +119,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             if (data) {
                 setUsers(data.map(mapProfileToUser));
                 console.log('Lista de usuários atualizada:', data.length);
+                if (data.length > 0) {
+                    console.log('--- DB SCHEMA CHECK (First User Row) ---');
+                    console.log('Columns found:', Object.keys(data[0]));
+                    console.log('Values found:', data[0]);
+                    console.log('-----------------------------------------');
+                }
             }
         } catch (err) {
             console.warn('Falha no refreshUsersList (silenciosa):', err);

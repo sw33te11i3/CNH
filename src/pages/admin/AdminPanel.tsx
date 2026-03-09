@@ -55,23 +55,46 @@ export function AdminPanel() {
         }, 12000);
 
         try {
-            // Separa dados de login de dados de CNH
-            const { email, password, role, id, ...cnhData } = formData as any;
+            // Separa dados de login e mapeia EXPLICITAMENTE os campos de CNH
+            const email = formData.email;
+            const password = formData.password;
 
-            console.log('--- DEBUG SAVE ---');
+            const cnhData: Partial<CNHData> = {
+                name: formData.name,
+                cpf: formData.cpf,
+                sex: formData.sex,
+                category: formData.category,
+                validityDate: formData.validityDate,
+                issueDate: formData.issueDate,
+                issuePlace: formData.issuePlace,
+                profileImage: formData.profileImage,
+                cnhFrontImage: formData.cnhFrontImage,
+                cnhBackImage: formData.cnhBackImage,
+                qrCodeImage: formData.qrCodeImage,
+                // Mantém outros campos se existirem no formData
+                birthDate: formData.birthDate,
+                fatherName: formData.fatherName,
+                motherName: formData.motherName,
+                registerNumber: formData.registerNumber,
+                firstLicenseDate: formData.firstLicenseDate,
+                issuingBody: formData.issuingBody,
+                observation: formData.observation,
+                scores: formData.scores
+            };
+
+            console.log('--- DEBUG SAVE (Explicit Mapping) ---');
             console.log('Email:', email);
-            console.log('cnhData keys:', Object.keys(cnhData));
-            console.log('cnhData values:', cnhData);
+            console.log('cnhData object:', cnhData);
             console.log('------------------');
 
             if (view === 'create') {
-                await createUser(email, password, cnhData);
+                await createUser(email!, password!, cnhData);
             } else if (view === 'edit' && editingId) {
                 console.log('Chamando updateUser para ID:', editingId);
-                await updateUser(editingId, { email, cnhData });
+                await updateUser(editingId, { email, cnhData } as any);
             }
 
-            console.log('Salvamento concluído com sucesso!');
+            console.log('Salvamento concluído!');
             setView('list');
             setEditingId(null);
             alert('Dados salvos com sucesso!');
