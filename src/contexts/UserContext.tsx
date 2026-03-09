@@ -217,10 +217,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (data.issuingBody !== undefined) updates.issuing_body = data.issuingBody;
         if (data.observation !== undefined) updates.observation = data.observation;
         if (data.scores !== undefined) updates.scores = data.scores;
+
+        // Mapeamento explícito das imagens
         if (data.profileImage !== undefined) updates.profile_image_url = data.profileImage;
         if (data.cnhFrontImage !== undefined) updates.cnh_front_image_url = data.cnhFrontImage;
         if (data.cnhBackImage !== undefined) updates.cnh_back_image_url = data.cnhBackImage;
         if (data.qrCodeImage !== undefined) updates.qr_code_image_url = data.qrCodeImage;
+
+        console.log('mapCNHToDB Result:', updates);
         return updates;
     };
 
@@ -337,16 +341,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
 
     const updateUser = async (id: string, data: Partial<User & { cnhData?: Partial<CNHData> }>) => {
+        console.log('updateUser chamado com:', { id, data });
         const updates: any = {};
         if (data.email) updates.email = normalizeIdentifier(data.email);
         if (data.role) updates.role = data.role;
 
         if (data.cnhData) {
-            Object.assign(updates, mapCNHToDB(data.cnhData));
+            const cnhUpdates = mapCNHToDB(data.cnhData);
+            Object.assign(updates, cnhUpdates);
         }
 
+        console.log('Final updates object for Supabase:', updates);
+
         const { error } = await supabase.from('profiles').update(updates).eq('id', id);
-        if (error) throw error;
+        if (error) {
+            console.error('Erro no Supabase update:', error);
+            throw error;
+        }
 
         if (currentUser?.id === id) {
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', id).single();

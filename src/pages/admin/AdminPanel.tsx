@@ -58,7 +58,11 @@ export function AdminPanel() {
             // Separa dados de login de dados de CNH
             const { email, password, role, id, ...cnhData } = formData as any;
 
-            console.log('Dados processados para envio:', { email, cnhData });
+            console.log('--- DEBUG SAVE ---');
+            console.log('Email:', email);
+            console.log('cnhData keys:', Object.keys(cnhData));
+            console.log('cnhData values:', cnhData);
+            console.log('------------------');
 
             if (view === 'create') {
                 await createUser(email, password, cnhData);
