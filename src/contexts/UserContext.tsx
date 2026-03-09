@@ -102,13 +102,26 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     });
 
     const refreshUsersList = async () => {
-        const { data, error } = await supabase.from('profiles').select('*');
-        if (error) {
-            console.error('Erro ao buscar lista de usuários:', error);
-            return;
-        }
-        if (data) {
-            setUsers(data.map(mapProfileToUser));
+        try {
+            console.log('Iniciando refreshUsersList...');
+            // Timeout de 5 segundos para não travar o app se o Supabase demorar
+            const fetchPromise = supabase.from('profiles').select('*');
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Timeout ao buscar usuários')), 5000)
+            );
+
+            const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+
+            if (error) {
+                console.error('Erro ao buscar lista de usuários:', error);
+                return;
+            }
+            if (data) {
+                setUsers(data.map(mapProfileToUser));
+                console.log('Lista de usuários atualizada:', data.length);
+            }
+        } catch (err) {
+            console.warn('Falha no refreshUsersList (silenciosa):', err);
         }
     };
 

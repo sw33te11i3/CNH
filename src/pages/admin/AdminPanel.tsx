@@ -43,24 +43,39 @@ export function AdminPanel() {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('Iniciando handleSave...', { view, editingId, formData });
         setIsSubmitting(true);
+
+        const saveTimeout = setTimeout(() => {
+            if (isSubmitting) {
+                console.error('TIMEOUT: O salvamento demorou mais de 10 segundos.');
+                setIsSubmitting(false);
+                alert('Erro: O servidor demorou muito para responder. Tente novamente ou verifique sua conexão.');
+            }
+        }, 12000);
 
         try {
             // Separa dados de login de dados de CNH
             const { email, password, role, id, ...cnhData } = formData as any;
 
+            console.log('Dados processados para envio:', { email, cnhData });
+
             if (view === 'create') {
                 await createUser(email, password, cnhData);
             } else if (view === 'edit' && editingId) {
+                console.log('Chamando updateUser para ID:', editingId);
                 await updateUser(editingId, { email, cnhData });
             }
 
+            console.log('Salvamento concluído com sucesso!');
             setView('list');
             setEditingId(null);
             alert('Dados salvos com sucesso!');
         } catch (error: any) {
-            alert('Erro ao salvar: ' + error.message);
+            console.error('ERRO AO SALVAR:', error);
+            alert('Erro ao salvar: ' + (error.message || JSON.stringify(error)));
         } finally {
+            clearTimeout(saveTimeout);
             setIsSubmitting(false);
         }
     };
@@ -68,12 +83,15 @@ export function AdminPanel() {
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: keyof CNHData) => {
         const file = e.target.files?.[0];
         if (file) {
+            console.log(`Iniciando upload para o campo: ${field}`);
             setUploadingField(field);
             try {
                 const oldUrl = formData[field as keyof CNHData] as string;
                 const url = await uploadImage(file, field, oldUrl);
+                console.log(`Upload concluído: ${field} -> ${url}`);
                 setFormData(prev => ({ ...prev, [field]: url }));
             } catch (error: any) {
+                console.error(`Erro no upload (${field}):`, error);
                 alert('Erro no upload: ' + error.message);
             } finally {
                 setUploadingField(null);
@@ -249,7 +267,20 @@ export function AdminPanel() {
                                             <p className="text-xs text-gray-500">Enviando...</p>
                                         </div>
                                     ) : formData[field as keyof CNHData] ? (
-                                        <img src={formData[field as keyof CNHData] as string} alt="Preview" className="h-24 mx-auto object-contain rounded" />
+                                        <div className="relative group">
+                                            <img
+                                                src={formData[field as keyof CNHData] as string}
+                                                alt="Preview"
+                                                className="h-24 mx-auto object-contain rounded"
+                                                onError={(e) => {
+                                                    console.warn(`Erro ao carregar imagem em ${field}:`, (e.target as HTMLImageElement).src);
+                                                    (e.target as HTMLImageElement).style.display = 'none';
+                                                }}
+                                            />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded transition-opacity">
+                                                <Upload className="text-white" size={20} />
+                                            </div>
+                                        </div>
                                     ) : (
                                         <Upload className="mx-auto text-gray-400" />
                                     )}
