@@ -1,84 +1,79 @@
--- 1. Create a table for public profiles (extends auth.users)
-create table if not exists public.profiles (
-  id uuid references auth.users on delete cascade not null primary key,
-  email text,
-  role text default 'user',
-  name text,
-  cpf text,
-  sex text,
-  birth_date text,
-  father_name text,
-  mother_name text,
-  category text,
-  register_number text,
-  validity_date text,
-  first_license_date text,
-  issue_date text,
-  issue_place text,
-  issuing_body text,
-  observation text,
-  scores integer default 0,
-  profile_image_url text,
-  cnh_front_image_url text,
-  cnh_back_image_url text,
-  qr_code_image_url text,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+-- 1. Create profiles table (if not exists)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL PRIMARY KEY,
+  email TEXT,
+  role TEXT DEFAULT 'user',
+  name TEXT,
+  cpf TEXT,
+  sex TEXT,
+  birth_date TEXT,
+  father_name TEXT,
+  mother_name TEXT,
+  category TEXT,
+  register_number TEXT,
+  validity_date TEXT,
+  first_license_date TEXT,
+  issue_date TEXT,
+  issue_place TEXT,
+  issuing_body TEXT,
+  observation TEXT,
+  scores INTEGER DEFAULT 0,
+  profile_image_url TEXT,
+  cnh_front_image_url TEXT,
+  cnh_back_image_url TEXT,
+  qr_code_image_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 2. Create a helper function to check if user is admin (breaks recursion)
-create or replace function public.is_admin()
-returns boolean as $$
-begin
-  return exists (
-    select 1 from public.profiles
-    where id = auth.uid() and role = 'admin'
+-- 2. Simplified is_admin (Security Definer avoids RLS recursion)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
   );
-end;
-$$ language plpgsql security definer;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. Set up Row Level Security (RLS)
-alter table profiles enable row level security;
+-- 3. Enable RLS
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- 4. Clean up existing policies before recreating (Safe to run multiple times)
-drop policy if exists "Public profiles are viewable by everyone." on profiles;
-drop policy if exists "Users can insert their own profile." on profiles;
-drop policy if exists "Users can update own profile." on profiles;
-drop policy if exists "Admins have full access to all profiles." on profiles;
-drop policy if exists "Admins can view all profiles." on profiles;
-drop policy if exists "Admins can update all profiles." on profiles;
-drop policy if exists "Admins can delete profiles." on profiles;
+-- 4. Recreate Policies
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone." ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile." ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile." ON public.profiles;
+DROP POLICY IF EXISTS "Admins have full access." ON public.profiles;
 
--- 5. Create policies
-create policy "Public profiles are viewable by everyone." on profiles
-  for select using (true);
+-- Permite leitura para todos (essencial para a CNH funcionar)
+CREATE POLICY "Public profiles are viewable by everyone." ON public.profiles
+  FOR SELECT USING (true);
 
-create policy "Users can insert their own profile." on profiles
-  for insert with check (auth.uid() = id);
+-- Permite insert apenas se for o próprio usuário (UID bate)
+CREATE POLICY "Users can insert their own profile." ON public.profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
 
-create policy "Users can update own profile." on profiles
-  for update using (auth.uid() = id);
+-- Permite update se for o próprio usuário OU se o UID logado for admin
+CREATE POLICY "Users and Admins can update profiles." ON public.profiles
+  FOR UPDATE USING (auth.uid() = id OR is_admin());
 
-create policy "Admins have full access to all profiles." on profiles
-  for all using (is_admin());
+-- Permite delete apenas se for admin
+CREATE POLICY "Admins can delete profiles." ON public.profiles
+  FOR DELETE USING (is_admin());
 
--- 6. Set up Storage (Bucket)
-insert into storage.buckets (id, name, public) 
-values ('cnh-images', 'cnh-images', true)
-on conflict (id) do nothing;
+-- 5. Storage Policies
+DROP POLICY IF EXISTS "Images are publicly accessible." ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload images." ON storage.objects;
+DROP POLICY IF EXISTS "Admins have full access to images." ON storage.objects;
 
--- 7. Storage Policies
-drop policy if exists "Images are publicly accessible." on storage.objects;
-drop policy if exists "Authenticated users can upload images." on storage.objects;
-drop policy if exists "Admins have full access to images." on storage.objects;
+CREATE POLICY "Images are publicly accessible." ON storage.objects
+  FOR SELECT USING (bucket_id = 'cnh-images');
 
-create policy "Images are publicly accessible." on storage.objects
-  for select using (bucket_id = 'cnh-images');
+CREATE POLICY "Users can upload to cnh-images." ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'cnh-images' AND auth.role() = 'authenticated');
 
-create policy "Authenticated users can upload images." on storage.objects
-  for insert with check (bucket_id = 'cnh-images' and auth.role() = 'authenticated');
+CREATE POLICY "Admins have full access to cnh-images." ON storage.objects
+  FOR ALL USING (bucket_id = 'cnh-images' AND is_admin());
 
-create policy "Admins have full access to images." on storage.objects
-  for all using (bucket_id = 'cnh-images' and is_admin());
-
--- 8. HELPER: Script to promote a user to admin (Run this separately if needed)
--- UPDATE profiles SET role = 'admin' WHERE email = 'admin@chl.com';
+-- 6. Garantir que o admin@chl.com seja Admin
+-- UPDATE public.profiles SET role = 'admin' WHERE email = 'admin@chl.com';

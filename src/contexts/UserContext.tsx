@@ -150,6 +150,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                 if (sessionError) throw sessionError;
 
                 if (session?.user) {
+                    console.log('Sessão ativa encontrada para UID:', session.user.id);
                     const { data: profile, error: profileError } = await supabase
                         .from('profiles')
                         .select('*')
@@ -157,15 +158,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                         .single();
 
                     if (profileError) {
-                        console.warn('Sessão encontrada, mas erro ao buscar perfil:', profileError.message);
+                        console.warn('Erro ao buscar perfil (initSession) - Cuidado com erro 406:', profileError);
                     } else if (profile) {
+                        console.log('Perfil carregado com sucesso:', profile.name);
                         setCurrentUser(mapProfileToUser(profile));
 
-                        // Busca lista se for admin
                         if (profile.role === 'admin') {
                             await refreshUsersList();
                         }
+                    } else {
+                        console.warn('Nenhum perfil encontrado para o usuário logado (initSession).');
                     }
+                } else {
+                    console.log('Nenhuma sessão ativa encontrada (initSession).');
                 }
             } catch (err: any) {
                 console.error('Erro crítico na inicialização da sessão:', err.message);
@@ -191,11 +196,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                 }
 
                 if (profile) {
+                    console.log('Perfil sincronizado após Auth Change:', profile.name);
                     const user = mapProfileToUser(profile);
                     setCurrentUser(user);
                     if (user.role === 'admin') {
                         await refreshUsersList();
                     }
+                } else {
+                    console.warn('Evento SIGNED_IN detectado, mas perfil não encontrado para UID:', session.user.id);
                 }
             } else if (event === 'SIGNED_OUT') {
                 setCurrentUser(null);
@@ -347,7 +355,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
 
     const updateUser = async (id: string, data: Partial<User & { cnhData?: Partial<CNHData> }>) => {
-        console.log('updateUser chamado com:', { id, data });
+        console.log('--- UPDATE START ---');
+        console.log('Target ID:', id);
+        console.log('Update Data:', data);
+
         const updates: any = {};
         if (data.email) updates.email = normalizeIdentifier(data.email);
         if (data.role) updates.role = data.role;
@@ -357,19 +368,35 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             Object.assign(updates, cnhUpdates);
         }
 
-        console.log('Final updates object for Supabase:', updates);
+        console.log('Payload for Supabase:', updates);
 
-        const { error } = await supabase.from('profiles').update(updates).eq('id', id);
+        // Usamos .select() para confirmar se a linha foi realmente alterada e o que o DB salvou
+        const { data: updatedRows, error, status } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', id)
+            .select();
+
         if (error) {
             console.error('Erro no Supabase update:', error);
             throw error;
         }
 
+        console.log('HTTP Status:', status);
+        console.log('Updated Rows:', updatedRows);
+
+        if (!updatedRows || updatedRows.length === 0) {
+            console.error('ALERTA: Nenhuma linha foi alterada! O ID não existe ou o RLS impediu o update.');
+            throw new Error('Nenhuma alteração foi salva no banco de dados. Verifique as permissões.');
+        }
+
+        console.log('Update bem-sucedido. Dados retornados do DB:', updatedRows[0]);
+
         if (currentUser?.id === id) {
-            const { data: profile } = await supabase.from('profiles').select('*').eq('id', id).single();
-            if (profile) setCurrentUser(mapProfileToUser(profile));
+            setCurrentUser(mapProfileToUser(updatedRows[0]));
         }
         await refreshUsersList();
+        console.log('--- UPDATE END ---');
     };
 
     const deleteUser = async (id: string) => {
