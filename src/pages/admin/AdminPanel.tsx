@@ -69,7 +69,8 @@ export function AdminPanel() {
         if (file) {
             setUploadingField(field);
             try {
-                const url = await uploadImage(file, field);
+                const oldUrl = formData[field as keyof CNHData] as string;
+                const url = await uploadImage(file, field, oldUrl);
                 setFormData(prev => ({ ...prev, [field]: url }));
             } catch (error: any) {
                 alert('Erro no upload: ' + error.message);

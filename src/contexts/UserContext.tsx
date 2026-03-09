@@ -41,7 +41,7 @@ interface UserContextType {
     createUser: (email: string, pass: string, initialData: Partial<CNHData>) => Promise<void>;
     updateUser: (id: string, data: Partial<User & { cnhData?: Partial<CNHData> }>) => Promise<void>;
     deleteUser: (id: string) => Promise<void>;
-    uploadImage: (file: File, path: string) => Promise<string>;
+    uploadImage: (file: File, path: string, oldUrl?: string) => Promise<string>;
     refreshUsersList: () => Promise<void>;
 }
 
@@ -237,7 +237,25 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         await supabase.auth.signOut();
     };
 
-    const uploadImage = async (file: File, path: string): Promise<string> => {
+    const uploadImage = async (file: File, path: string, oldUrl?: string): Promise<string> => {
+        // Se houver uma URL antiga, tenta extrair o caminho e deletar
+        if (oldUrl) {
+            try {
+                // Exemplo de URL: https://upctnkochhwuwwjcdcaa.supabase.co/storage/v1/object/public/cnh-images/profileImage/0.123.jpg
+                // Precisamos do caminho relativo dentro do bucket: profileImage/0.123.jpg
+                const pathParts = oldUrl.split('/cnh-images/');
+                if (pathParts.length > 1) {
+                    const relativePath = pathParts[1];
+                    await supabase.storage
+                        .from('cnh-images')
+                        .remove([relativePath]);
+                }
+            } catch (err) {
+                console.warn('Falha ao deletar imagem antiga:', err);
+                // Não trava o processo se falhar ao deletar a antiga
+            }
+        }
+
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `${path}/${fileName}`;
@@ -314,7 +332,25 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
 
     const deleteUser = async (id: string) => {
-        // Nota: Auth users devem ser deletados via admin API ou trigger, aqui deletamos apenas o profile
+        // 1. Busca os dados para pegar URLs das imagens antes de deletar o perfil
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', id).single();
+
+        if (profile) {
+            // 2. Coleta todos os caminhos de imagem para deletar do Storage
+            const imagesToDelete = [
+                profile.profile_image_url,
+                profile.cnh_front_image_url,
+                profile.cnh_back_image_url,
+                profile.qr_code_image_url
+            ].filter(url => url && url.includes('/cnh-images/'))
+                .map(url => url.split('/cnh-images/')[1]);
+
+            if (imagesToDelete.length > 0) {
+                await supabase.storage.from('cnh-images').remove(imagesToDelete);
+            }
+        }
+
+        // 3. Deleta o profile (Auth user deve ser deletado via Admin ou Cascade se configurado)
         const { error } = await supabase.from('profiles').delete().eq('id', id);
         if (error) throw error;
         await refreshUsersList();
